@@ -1,5 +1,5 @@
 # Crocodile-Solar-Pool-Sensor
-A rather special pool sensor measuring the pool temperature and transmitting it via WiFi to Blynk App and to a MQTT broker
+A rather special looking pool sensor measuring the pool temperature and transmitting it via WiFi to Blynk App and to a MQTT broker
 https://www.instructables.com/id/Crocodile-Solar-Pool-Sensor/
 
 Version 1.0
