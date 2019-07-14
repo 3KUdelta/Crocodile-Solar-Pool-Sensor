@@ -10,7 +10,7 @@
   Main microcontroller (ESP8266, LOLIN (WEMOS) D1 mini pro) and 18d20 temperature sensor both sleep between measurements
 
   CODE: https://github.com/3KUdelta
-  INSTRUCTIONS & HARDWARE: 
+  INSTRUCTIONS & HARDWARE: https://www.instructables.com/id/Crocodile-Solar-Pool-Sensor/
   3D FILES: Included in the instructables page
 
 */
