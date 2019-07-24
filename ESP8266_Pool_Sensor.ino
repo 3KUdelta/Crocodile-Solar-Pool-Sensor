@@ -25,6 +25,7 @@
   LOLIN(WEMOS) D1 mini Pro, 80 MHz, Flash, 16M (14M SPIFFS), v2 Lower Memory, Disable, None, Only Sketch, 921600 on /dev/cu.SLAB_USBtoUART
 
   V1.0: initial compile and commit: 07/07/19
+  V1.1: improved error handling if no WiFi connection possible --> take a nap for 1 min and retry instead of a reset
 
 
 ////  Features :  //////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -61,8 +62,6 @@ const int numReadings = 32;            // the higher the value, the smoother the
 float readings[numReadings];           // the readings from the analog input
 float total = 0;                       // the running total
 float PoolTemp;
-
-void(* resetFunc) (void) = 0;          // declare reset function @ address 0
 
 WiFiClient espClient;
 PubSubClient client(espClient);
@@ -139,7 +138,7 @@ void setup()
   Blynk.virtualWrite(12, batteryVoltage);     // virtual pin 12
   Serial.println("Data written to Blink ...");
 
-  goToSleep();                       // over and out
+  goToSleep(sleepTimeMin);                    // over and out
   
 }
 
@@ -159,8 +158,8 @@ void go_online() {
     i++;
     if (i > 50) {
       Serial.println("Could not connect to WiFi!");
-      Serial.println("Doing a reset now and retry a connection from scratch.");
-      resetFunc();
+      Serial.println("Doing a break for 1 Minute and retry a connection from scratch.");
+      goToSleep(1);   // go to sleep and retry after 1 min
     }  
     Serial.print(".");
   }
@@ -206,10 +205,10 @@ void reconnect() {
   }
 } //end void reconnect*/
 
-void goToSleep() {
+void goToSleep(unsigned int sleepmin) {
   if (MQTT) {
     char tmp[128];
-    String sleepmessage = "PoolMonitor: Taking an nap for " + String sleepTimeMin + " Minutes";
+    String sleepmessage = "PoolMonitor: Taking an nap for " + String (sleepmin) + " Minutes";
     sleepmessage.toCharArray(tmp, 128);
     client.publish("home/debug",tmp);
     delay(50);
@@ -227,7 +226,7 @@ void goToSleep() {
     delay(50);
   }
   Serial.print ("Going to sleep now for ");
-  Serial.print (sleepTimeMin);
+  Serial.print (sleepmin);
   Serial.print (" Minute(s).");
-  ESP.deepSleep(sleepTimeMin * 60 * 1000000); // convert to microseconds
+  ESP.deepSleep(sleepmin * 60 * 1000000); // convert to microseconds
 } // end of goToSleep()
