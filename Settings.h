@@ -26,7 +26,9 @@ const char* mqtt_server = "192.xxx.xxx.xxx";      // MQTT Server address, leave 
 
 /****** Additional Settings **************************************************/
 
-#define sleepTimeMin (15)           // setting of deepsleep time in minutes (default: 15)
+const boolean is_metric = true;                   // Set this to true for Celcius, false for Fahrenheit
+
+#define sleepTimeMin (15)                         // setting of deepsleep time in minutes (default: 15)
 
 
 /****** Data transmission overview *******************************************
