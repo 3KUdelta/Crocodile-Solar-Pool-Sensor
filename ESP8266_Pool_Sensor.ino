@@ -26,6 +26,7 @@
 
   V1.0: initial compile and commit: 07/07/19
   V1.1: improved error handling if no WiFi connection possible --> take a nap for 1 min and retry instead of a reset
+  V1.2: added switch for Fahrenheit in Settings.h
 
 
 ////  Features :  //////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -98,6 +99,8 @@ void setup()
     total = total + readings[thisReading];
   }
   PoolTemp = total / numReadings;
+
+  if (!is_metric) PoolTemp = PoolTemp * 1.8 + 32;
   
   Serial.print("Measured pool temperature: ");
   Serial.println(PoolTemp);
