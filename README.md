@@ -15,6 +15,9 @@ Version 1.1
 Version 1.2
 - added switch to change between Celsius and Fahrenheit (Settings.h --> is_metric true or false)
 
+Version 1.3
+- added NTP time fetch, DST conversion and data transmission of last update timestamp to Blynk APP
+
 [![Crocodile Solar Pool Sensor](https://github.com/3KUdelta/Crocodile-Solar-Pool-Sensor/blob/master/Pool_Croc.jpg)](https://github.com/3KUdelta/Crocodile-Solar-Pool-Sensor)
 
 [![Crocodile Solar Pool Sensor](https://github.com/3KUdelta/Crocodile-Solar-Pool-Sensor/blob/master/Pool_Sensor.jpg)](https://github.com/3KUdelta/Crocodile-Solar-Pool-Sensor)
