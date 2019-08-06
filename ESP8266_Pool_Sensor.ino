@@ -20,6 +20,10 @@
   <ESP8266WiFi.h>               // For WiFi connection with ESP8266 --> MQTT
   <BlynkSimpleEsp8266.h>        // https://github.com/blynkkk/blynk-library
   <PubSubClient.h>              // For MQTT (in this case publishing only)
+  <WiFiUdp.h>                   // For NTP Signal fetch
+  <EasyNTPClient.h>             // For NTP Signal read https://github.com/aharshac/EasyNTPClient
+  <TimeLib.h>                   // For converting NTP time https://github.com/PaulStoffregen/Time
+  <Timezone.h>                  // http://github.com/JChristensen/Timezone  JUST IGNORE COMPILE WARNING!
 
   Hardware Settings Mac: 
   LOLIN(WEMOS) D1 mini Pro, 80 MHz, Flash, 16M (14M SPIFFS), v2 Lower Memory, Disable, None, Only Sketch, 921600 on /dev/cu.SLAB_USBtoUART
@@ -27,7 +31,7 @@
   V1.0: initial compile and commit: 07/07/19
   V1.1: improved error handling if no WiFi connection possible --> take a nap for 1 min and retry instead of a reset
   V1.2: added switch for Fahrenheit in Settings.h
-
+  V1.3: added NTP time fetch including DST conversion and publish last update timestamp to BLYNK app
 
 ////  Features :  //////////////////////////////////////////////////////////////////////////////////////////////////////
                                                                                                                          
@@ -46,26 +50,33 @@
  *                                                 *
  **************************************************/
 
-
 #include "Settings.h"
-#include <OneWire.h>                   // for temperature sensor 18d20
-#include <DallasTemperature.h>         // for temperature sensor 18d20
-#include <ESP8266WiFi.h>               // For WiFi connection with ESP8266 --> MQTT
-#include <BlynkSimpleEsp8266.h>        // https://github.com/blynkkk/blynk-library
-#include <PubSubClient.h>              // For MQTT (in this case publishing only)
+#include <OneWire.h>                         // for temperature sensor 18d20
+#include <DallasTemperature.h>               // for temperature sensor 18d20
+#include <ESP8266WiFi.h>                     // For WiFi connection with ESP8266 --> MQTT
+#include <BlynkSimpleEsp8266.h>              // https://github.com/blynkkk/blynk-library
+#include <PubSubClient.h>                    // For MQTT (in this case publishing only)
+#include <WiFiUdp.h>                         // For NTP Signal fetch
+#include <EasyNTPClient.h>                   // For NTP Signal read https://github.com/aharshac/EasyNTPClient
+#include <TimeLib.h>                         // For converting NTP time https://github.com/PaulStoffregen/Time.git
 
-#define ONE_WIRE_BUS 2                 // Data wire 18d20 Sensor is plugged into port 2 @ ESP8266
+#define ONE_WIRE_BUS 2                       // Data wire 18d20 Sensor is plugged into port 2 @ ESP8266
 
-OneWire oneWire(ONE_WIRE_BUS);         // Setup a oneWire instance to communicate with any OneWire devices
-DallasTemperature sensors(&oneWire);   // Pass our oneWire reference to Dallas Temperature. 
+OneWire oneWire(ONE_WIRE_BUS);               // Setup a oneWire instance to communicate with any OneWire devices
+DallasTemperature sensors(&oneWire);         // Pass our oneWire reference to Dallas Temperature. 
 
-const int numReadings = 32;            // the higher the value, the smoother the average (default: 32)
-float readings[numReadings];           // the readings from the analog input
-float total = 0;                       // the running total
+WiFiUDP udp;                                 // Initializing UPD for NTP read
+EasyNTPClient ntpClient(udp, NTP_SERVER, 0); // Initializing NTP call
+
+WiFiClient espClient;                        // Initializing WiFiClient for MQTT
+PubSubClient client(espClient);              // Initializing MQTT
+
+//**** Variables ****
+const int numReadings = 32;                  // the higher the value, the smoother the average (default: 32)
+float readings[numReadings];                 // the readings from the analog input
+float total = 0;                             // the running total
 float PoolTemp;
-
-WiFiClient espClient;
-PubSubClient client(espClient);
+char actualtime[16];
 
 void setup()
 {
@@ -73,12 +84,13 @@ void setup()
   Serial.println();
   Serial.println("Starting Pool Monitor");
 
-  go_online();                          // open WiFi and go online
+  go_online();                               // open WiFi and go online
+  get_NTP_time();                            // get time from NTP server
 
   if (MQTT) {
-    randomSeed(micros());               // used for random client id
+    randomSeed(micros());                    // used for random client id
 
-    connect_to_MQTT();                  // connect to MQTT broker --> do not forget Settings.h
+    connect_to_MQTT();                       // connect to MQTT broker --> do not forget Settings.h
 
     client.publish("home/debug", "PoolMonitor: Sensor started");  // publishing debug messages via MQTT
     delay(50);
@@ -89,21 +101,19 @@ void setup()
   Serial.print("Requesting temperature...");
   
   sensors.begin();
-  
   sensors.requestTemperatures();      // Send the command to get temperatures
-  Serial.println("DONE");
-  
-  for (int thisReading = 0; thisReading < numReadings; thisReading++) // take # of readings for smoothening
-  {
-    readings[thisReading] = sensors.getTempCByIndex(0);
-    total = total + readings[thisReading];
+  int i = 0;
+  while (getTemperature() != true) {
+    delay(500);
+    i++;
+    if (i > 20) {
+      Serial.println("Could not get a correct temperature reading!");
+      Serial.println("Doing a break for 1 Minute and retry a connection from scratch.");
+      goToSleep(1);   // go to sleep and retry after 1 min
+    }      
+    Serial.println("Doing another measurement due to wrong reading");
   }
-  PoolTemp = total / numReadings;
-
-  if (!is_metric) PoolTemp = PoolTemp * 1.8 + 32;
-  
-  Serial.print("Measured pool temperature: ");
-  Serial.println(PoolTemp);
+  Serial.println("Temperature reading ok");
 
   if (MQTT) {
     client.publish("home/debug", "PoolMonitor: Measuring voltage of battery");
@@ -136,9 +146,17 @@ void setup()
     client.publish("home/debug", "PoolMonitor: Just published batt voltage to home/pool/solarcroc/battv");
     delay(50);
   }
+  
+  /*********** preparing timestamp for BLYNK **********************/
+  
+  sprintf(actualtime, "%02u:%02u", hour(now()), minute(now()));
+  
   /********** writing data to Blynk *******************************/
+  
   Blynk.virtualWrite(11, PoolTemp);           // virtual pin 11
   Blynk.virtualWrite(12, batteryVoltage);     // virtual pin 12
+  Blynk.virtualWrite(13, actualtime);         // virtual pin 13
+  
   Serial.println("Data written to Blink ...");
 
   goToSleep(sleepTimeMin);                    // over and out
@@ -173,6 +191,37 @@ void go_online() {
 
 } //end go_online
 
+void get_NTP_time() {
+  time_t utc;
+  
+  Serial.println("---> Now reading time from NTP Server");
+
+  while (!ntpClient.getUnixTime()) {
+    delay(100);
+    Serial.print(".");
+  }
+  setTime(ntpClient.getUnixTime());           // get UNIX timestamp (seconds from 1.1.1970 on)
+
+  utc = now();
+  setTime(MyTZ.toLocal(utc));                 // convert into your timezone (defined in Settings.h) and store it in now()
+
+  Serial.print("Actual UNIX timestamp: ");
+  Serial.println(now());
+
+  Serial.print("Time & Date: ");
+  Serial.print(hour(now()));
+  Serial.print(":");
+  Serial.print(minute(now()));
+  Serial.print(":");
+  Serial.print(second(now()));
+  Serial.print("; ");
+  Serial.print(day(now()));
+  Serial.print(".");
+  Serial.print(month(now()));
+  Serial.print(".");
+  Serial.println(year(now()));
+} // end get_NTP_time()
+
 void connect_to_MQTT() {
   Serial.print("---> Connecting to MQTT, ");
   client.setServer(mqtt_server, 1883);
@@ -194,7 +243,7 @@ void reconnect() {
     Serial.print(clientId.c_str());
     // Attempt to connect
     if (client.connect(clientId.c_str())) {
-      Serial.println("connected");
+      Serial.println(" - connected");
        // Once connected, publish an announcement...
       client.publish("home/debug", "PoolMonitor: client started...");
       delay(50);
@@ -207,6 +256,27 @@ void reconnect() {
     }
   }
 } //end void reconnect*/
+
+bool getTemperature() {
+  for (int thisReading = 0; thisReading < numReadings; thisReading++) // take # of readings for smoothening
+  {
+    readings[thisReading] = sensors.getTempCByIndex(0);
+    total = total + readings[thisReading];
+  }
+  PoolTemp = total / numReadings;
+
+  if (!is_metric) PoolTemp = PoolTemp * 1.8 + 32;
+  
+  Serial.print("Measured pool temperature: ");
+  Serial.println(PoolTemp);
+
+  if (PoolTemp > -127 && PoolTemp < 85) {                            // error handling for bogus readings
+    return true;
+  }
+  else {
+    return false;
+  }
+}
 
 void goToSleep(unsigned int sleepmin) {
   if (MQTT) {
