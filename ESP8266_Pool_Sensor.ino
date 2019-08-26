@@ -150,6 +150,8 @@ void setup()
   /*********** preparing timestamp for BLYNK **********************/
   
   sprintf(actualtime, "%02u:%02u", hour(now()), minute(now()));
+  Serial.print("Update time sent to Blynk: ");
+  Serial.println(actualtime);
   
   /********** writing data to Blynk *******************************/
   
@@ -157,7 +159,7 @@ void setup()
   Blynk.virtualWrite(12, batteryVoltage);     // virtual pin 12
   Blynk.virtualWrite(13, actualtime);         // virtual pin 13
   
-  Serial.println("Data written to Blink ...");
+  Serial.println("Writing to Blynk completed ...");
 
   goToSleep(sleepTimeMin);                    // over and out
   
