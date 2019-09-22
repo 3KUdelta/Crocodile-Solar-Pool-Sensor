@@ -22,3 +22,6 @@ Version 1.3
 
 [![Crocodile Solar Pool Sensor](https://github.com/3KUdelta/Crocodile-Solar-Pool-Sensor/blob/master/Pool_Sensor.jpg)](https://github.com/3KUdelta/Crocodile-Solar-Pool-Sensor)
 
+Please see also how to display the data on a LED matrix:
+[![LED matrix MQTT monitor](https://github.com/3KUdelta/MDparola_MQTT_monitor/blob/master/pictures/IMG_3180.JPG)](https://github.com/3KUdelta/MDparola_MQTT_monitor)
+https://github.com/3KUdelta/MDparola_MQTT_monitor
