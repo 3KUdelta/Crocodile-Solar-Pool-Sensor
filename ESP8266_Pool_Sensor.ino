@@ -32,6 +32,7 @@
   V1.1: improved error handling if no WiFi connection possible --> take a nap for 1 min and retry instead of a reset
   V1.2: added switch for Fahrenheit in Settings.h
   V1.3: added NTP time fetch including DST conversion and publish last update timestamp to BLYNK app
+  V1.4: added battery saving mode when battery goes below 3.3 V
 
 ////  Features :  //////////////////////////////////////////////////////////////////////////////////////////////////////
                                                                                                                          
@@ -77,6 +78,7 @@ float readings[numReadings];                 // the readings from the analog inp
 float total = 0;                             // the running total
 float PoolTemp;
 char actualtime[16];
+bool battstate = 1;
 
 void setup()
 {
@@ -126,6 +128,8 @@ void setup()
   Serial.print("Measured battery voltage: ");
   Serial.println(batteryVoltage);
 
+  if (batteryVoltage < 3.3) battstate = 0;     // Battery low, needs do be recharged
+
   /********** writing data to MQTT ********************************/
   if (MQTT) {
     /* handling pool temp */
@@ -145,6 +149,12 @@ void setup()
     delay(50);
     client.publish("home/debug", "PoolMonitor: Just published batt voltage to home/pool/solarcroc/battv");
     delay(50);
+
+    if (battstate == 0) {
+      /*sending BATT LOW to MQTT*/
+      client.publish("home/debug", "PoolMonitor: RUNNING LOW ON BATTERY!");
+      delay(50);
+    }
   }
   
   /*********** preparing timestamp for BLYNK **********************/
@@ -161,7 +171,12 @@ void setup()
   
   Serial.println("Writing to Blynk completed ...");
 
-  goToSleep(sleepTimeMin);                    // over and out
+  if (battstate == 1) {
+    goToSleep(sleepTimeMin);  // normal sleeping time (as set in Settings.h)
+  }
+  else {
+    goToSleep(360);           // Batt low, sleeping for 6 hours
+  }
   
 }
 
