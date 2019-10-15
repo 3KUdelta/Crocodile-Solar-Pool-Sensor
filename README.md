@@ -18,6 +18,9 @@ Version 1.2
 Version 1.3
 - added NTP time fetch, DST conversion and data transmission of last update timestamp to Blynk APP
 
+Version 1.4
+- added battery saving when batt level goes below 3.3 V
+
 [![Crocodile Solar Pool Sensor](https://github.com/3KUdelta/Crocodile-Solar-Pool-Sensor/blob/master/Pool_Croc.jpg)](https://github.com/3KUdelta/Crocodile-Solar-Pool-Sensor)
 
 [![Crocodile Solar Pool Sensor](https://github.com/3KUdelta/Crocodile-Solar-Pool-Sensor/blob/master/Pool_Sensor.jpg)](https://github.com/3KUdelta/Crocodile-Solar-Pool-Sensor)
