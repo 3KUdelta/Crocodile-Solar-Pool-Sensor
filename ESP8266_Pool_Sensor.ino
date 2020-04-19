@@ -33,6 +33,7 @@
   V1.2: added switch for Fahrenheit in Settings.h
   V1.3: added NTP time fetch including DST conversion and publish last update timestamp to BLYNK app
   V1.4: added battery saving mode when battery goes below 3.3 V
+  V1.5: added lastupdate for transmission to MQTT
 
 ////  Features :  //////////////////////////////////////////////////////////////////////////////////////////////////////
                                                                                                                          
@@ -129,6 +130,10 @@ void setup()
   Serial.println(batteryVoltage);
 
   if (batteryVoltage < 3.3) battstate = 0;     // Battery low, needs do be recharged
+  
+   /*********** preparing timestamp for MQTT/Blynk **********************/
+  
+  sprintf(actualtime, "%02u:%02u", hour(now()), minute(now()));
 
   /********** writing data to MQTT ********************************/
   if (MQTT) {
@@ -149,6 +154,11 @@ void setup()
     delay(50);
     client.publish("home/debug", "PoolMonitor: Just published batt voltage to home/pool/solarcroc/battv");
     delay(50);
+    
+    client.publish("home/pool/solarcroc/lastupdate", actualtime, 1);   // ,1 = retained
+    delay(50);
+    client.publish("home/debug", "PoolMonitor: Just published lastupdate to home/pool/solarcroc/lastupdate");
+    delay(50);
 
     if (battstate == 0) {
       /*sending BATT LOW to MQTT*/
@@ -157,17 +167,14 @@ void setup()
     }
   }
   
-  /*********** preparing timestamp for BLYNK **********************/
-  
-  sprintf(actualtime, "%02u:%02u", hour(now()), minute(now()));
-  Serial.print("Update time sent to Blynk: ");
-  Serial.println(actualtime);
-  
   /********** writing data to Blynk *******************************/
   
   Blynk.virtualWrite(11, PoolTemp);           // virtual pin 11
   Blynk.virtualWrite(12, batteryVoltage);     // virtual pin 12
   Blynk.virtualWrite(13, actualtime);         // virtual pin 13
+  
+  Serial.print("Update time sent to Blynk: ");
+  Serial.println(actualtime);
   
   Serial.println("Writing to Blynk completed ...");
 
